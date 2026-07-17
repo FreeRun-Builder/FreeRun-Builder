@@ -62,16 +62,14 @@ jobs:
             fs.writeFileSync('config.xml', config);
           "
 
-      - name: Build Android APK (Force APK Format)
+      - name: Build Android APK (Debug Mode)
         run: |
           cd myapp
-          # បង្ខំឲ្យវាចេញជា .apk 
+          # 🔴 ប្ដូរមកប្រើ --debug ដើម្បីឱ្យ Android Auto-Sign APK (អាច Install បាន ១០០%)
           cordova build android --debug -- --packageType=apk
 
-      - name: Upload and Publish APK to Branch
+      - name: Upload, Clean Old Files and Publish
         run: |
-          mkdir -p release-apks
-          
           echo "កំពុងស្វែងរក File APK ទូទាំង Project..."
           APK_PATH=$(find . -type f -name "*.apk" | head -n 1)
           
@@ -81,16 +79,13 @@ jobs:
           fi
           
           echo "ជោគជ័យ! រកឃើញ APK នៅទីតាំង៖ $APK_PATH"
-          cp "$APK_PATH" release-apks/build_${{ github.event.client_payload.buildId }}.apk
           
           # Setup Git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # ទាញយកទិន្នន័យពី GitHub មកសិន ដើម្បីកុំឱ្យបាត់ File មុនៗ
+          # ទាញយក Branch: apk-releases មកសិន (ទើបអាចលុប file ចាស់ៗនៅក្នុងហ្នឹងបាន)
           git fetch origin
-          
-          # ឆែកមើលបើមាន Branch apk-releases ស្រាប់ គឺទាញយកមក (Pull/Rebase) បើអត់មានគឺបង្កើតថ្មី
           if git ls-remote --heads origin apk-releases | grep -q apk-releases; then
             git checkout apk-releases
             git pull origin apk-releases --rebase
@@ -98,9 +93,18 @@ jobs:
             git checkout -b apk-releases
           fi
           
-          # Add និង Commit តែ File APK ថ្មីមួយគត់
-          git add release-apks/build_${{ github.event.client_payload.buildId }}.apk
-          git commit -m "Build APK for ID: ${{ github.event.client_payload.buildId }}"
+          # បង្កើត Folder សម្រាប់ផ្ទុក
+          mkdir -p release-apks
           
-          # Push ធម្មតាដោយមិនប្រើ --force (ការពារការលុប File គេចោល)
+          # ចម្លង File APK ថ្មីចូលទៅក្នុង Folder នោះ
+          cp "$APK_PATH" release-apks/build_${{ github.event.client_payload.buildId }}.apk
+          
+          # 🔴 សំខាន់៖ រក្សាទុកតែ ៥ File ចុងក្រោយប៉ុណ្ណោះ រួចលុប File ចាស់ៗចោល ដើម្បីកុំឱ្យពេញទំហំ GitHub
+          ls -t release-apks/*.apk | tail -n +6 | xargs -r rm -f
+          
+          # Add, Commit ទាំង File ថ្មីដែលបានថែម និង File ចាស់ដែលត្រូវបានលុប
+          git add release-apks/
+          git commit -m "Build APK for ID: ${{ github.event.client_payload.buildId }} & Auto-Clean old APKs" || echo "No changes to commit"
+          
+          # Push ចូលទៅ Branch apk-releases
           git push origin apk-releases
