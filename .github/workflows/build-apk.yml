@@ -22,24 +22,41 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install Cordova (For converting HTML to APK)
+      - name: Install Cordova and Create Project
         run: |
           npm install -g cordova
-          cordova create myapp com.example.myapp "${{ github.event.client_payload.appName }}"
+          # បង្កើត Project ដោយប្រើ Package Name និង App Name ដែលផ្ញើពី UI
+          cordova create myapp "${{ github.event.client_payload.packageName }}" "${{ github.event.client_payload.appName }}"
           cd myapp
           cordova platform add android
 
-      - name: Write HTML & Icon Code from Payload
+      - name: Write HTML, Icon, and Modify Config.xml
         run: |
           cd myapp
-          # Decode HTML from Base64
+          
+          # 1. Decode HTML
           echo "${{ github.event.client_payload.html }}" | base64 --decode > www/index.html
           
-          # Decode Icon from Base64 (if provided)
+          # 2. Decode Icon (if exists)
           if [ "${{ github.event.client_payload.icon }}" != "none" ]; then
             echo "${{ github.event.client_payload.icon }}" | base64 --decode > www/icon.png
-            # Code to replace the Cordova App Icon...
           fi
+
+          # 3. Modify config.xml using Node.js to apply Version and Icon
+          node -e "
+            const fs = require('fs');
+            let config = fs.readFileSync('config.xml', 'utf8');
+            
+            // Apply Custom Version
+            config = config.replace(/version=\"[^\"]+\"/, 'version=\"${{ github.event.client_payload.version }}\"');
+            
+            // Add Icon configuration if icon was uploaded
+            if ('${{ github.event.client_payload.icon }}' !== 'none') {
+               config = config.replace('</widget>', '    <icon src=\"www/icon.png\" />\n</widget>');
+            }
+            
+            fs.writeFileSync('config.xml', config);
+          "
 
       - name: Build Android APK
         run: |
@@ -48,15 +65,12 @@ jobs:
 
       - name: Upload and Publish APK to Branch
         run: |
-          # Create a directory to store the APK
           mkdir -p release-apks
           cp myapp/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk release-apks/build_${{ github.event.client_payload.buildId }}.apk
           
-          # Push the APK file to the `apk-releases` branch so the raw.githubusercontent link works
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Create or switch to the apk-releases branch
           git checkout -B apk-releases
           git add release-apks/build_${{ github.event.client_payload.buildId }}.apk
           git commit -m "Build APK for ID: ${{ github.event.client_payload.buildId }}"
