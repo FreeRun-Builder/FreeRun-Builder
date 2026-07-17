@@ -66,7 +66,7 @@ jobs:
         run: |
           cd myapp
           # បង្ខំឲ្យវាចេញជា .apk 
-          cordova build android --release -- --packageType=apk
+          cordova build android --debug -- --packageType=apk
 
       - name: Upload and Publish APK to Branch
         run: |
