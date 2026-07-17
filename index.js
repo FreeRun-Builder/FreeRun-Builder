@@ -48,7 +48,7 @@ export default {
 
       if (githubResponse.status === 204) {
         // 🌟 បង្កើត Link Download ទីតាំង APK ដោយប្រើ Variables នៅក្នុង Worker រួចបោះទៅ Frontend
-        const apkDownloadUrl = `https://raw.githubusercontent.com/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/apk-releases/build_${client_payload.buildId}.apk`;
+        const apkDownloadUrl = `https://raw.githubusercontent.com/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/apk-releases/release-apks/build_${client_payload.buildId}.apk`;
         
         return new Response(JSON.stringify({ 
           success: true, 
