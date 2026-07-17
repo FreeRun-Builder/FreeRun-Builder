@@ -1,3 +1,9 @@
 name = "freerun-builder"
 main = "index.js"
 compatibility_date = "2026-07-17"
+
+# បន្ថែមផ្នែក [vars] នេះដើម្បីឲ្យ Cloudflare ចងចាំអថេរទាំងនេះជារៀងរហូត
+[vars]
+GITHUB_OWNER = "ឈ្មោះ_គណនី_Github_របស់អ្នក"
+GITHUB_REPO = "ឈ្មោះ_Repo_របស់អ្នក"
+GITHUB_TOKEN = "ghp_ដាក់កូដ_Token_របស់អ្នកនៅទីនេះ"
