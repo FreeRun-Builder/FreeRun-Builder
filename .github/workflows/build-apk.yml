@@ -66,7 +66,9 @@ jobs:
       - name: Upload and Publish APK to Branch
         run: |
           mkdir -p release-apks
-          cp myapp/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk release-apks/build_${{ github.event.client_payload.buildId }}.apk
+          
+          # ប្រើសញ្ញា *.apk ដើម្បីចាប់យក File ស្វ័យប្រវត្តិ ទោះវាឈ្មោះអ្វីក៏ដោយ
+          cp myapp/platforms/android/app/build/outputs/apk/release/*.apk release-apks/build_${{ github.event.client_payload.buildId }}.apk
           
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
