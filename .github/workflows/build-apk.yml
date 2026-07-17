@@ -1,4 +1,4 @@
-name: Build HTML to APK
+name: Build Android APK from HTML
 
 on:
   repository_dispatch:
@@ -7,51 +7,57 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 18
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-style: 20
 
-    - name: Install Cordova
-      run: npm install -g cordova
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
-    - name: Setup Java JDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'zulu'
-        java-version: '17'
+      - name: Install Cordova or Capacitor (សម្រាប់បំប្លែង HTML ទៅ APK)
+        run: |
+          npm install -g cordova
+          cordova create myapp com.example.myapp "${{ github.event.client_payload.appName }}"
+          cd myapp
+          cordova platform add android
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      - name: Write HTML & Icon Code from Payload
+        run: |
+          cd myapp
+          # បកប្រែ HTML ពី Base64 មកវិញ
+          echo "${{ github.event.client_payload.html }}" | base64 --decode > www/index.html
+          
+          # បកប្រែ Icon ពី Base64 (ប្រសិនបើមាន)
+          if [ "${{ github.event.client_payload.icon }}" != "none" ]; then
+            echo "${{ github.event.client_payload.icon }}" | base64 --decode > www/icon.png
+            # កូដសម្រាប់ជំនួស Icon របស់ Cordova App...
+          fi
 
-    - name: Create Project & Inject Code
-      run: |
-        cordova create myapp com.freerun.builder FreeRunApp
-        cd myapp
-        cordova platform add android
-        rm -rf www/*
-        
-        # ទទួលកូដពី App របស់អ្នកមកបង្កើតជា File ក្នុង Cordova
-        echo '${{ github.event.client_payload.html }}' > www/index.html
-        echo '${{ github.event.client_payload.css }}' > www/style.css
-        echo '${{ github.event.client_payload.js }}' > www/index.js
-        
-        # កែសម្រួលឱ្យ index.html ហៅ style និង script ដោយស្វ័យប្រវត្តិ
-        sed -i '</head>/i <link rel="stylesheet" href="style.css">' www/index.html
-        sed -i '</body>/i <script src="index.js"></script>' www/index.html
+      - name: Build Android APK
+        run: |
+          cd myapp
+          cordova build android --release
 
-    - name: Build APK
-      run: |
-        cd myapp
-        cordova build android --release
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: my-app-apk
-        path: myapp/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+      - name: Upload and Publish APK to Branch
+        run: |
+          # បង្កើត Folder សម្រាប់ផ្ទុក APK
+          mkdir -p release-apks
+          cp myapp/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk release-apks/build_${{ github.event.client_payload.buildId }}.apk
+          
+          # Push ឯកសារ APK ទៅកាន់ Branch `apk-releases` ដើម្បីឱ្យ Link របស់ raw.githubusercontent ដំណើរការ
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # បង្កើត ឬ Switch ទៅកាន់ branch apk-releases
+          git checkout -B apk-releases
+          git add release-apks/build_${{ github.event.client_payload.buildId }}.apk
+          git commit -m "Build APK for ID: ${{ github.event.client_payload.buildId }}"
+          git push origin apk-releases --force
