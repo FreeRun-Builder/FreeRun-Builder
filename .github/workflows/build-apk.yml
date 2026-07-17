@@ -4,6 +4,10 @@ on:
   repository_dispatch:
     types: [build_apk]
 
+# [ចំណុចបន្ថែមទី១] អនុញ្ញាតឲ្យ GitHub Actions មានសិទ្ធិ Push File ចូលទៅក្នុង Branch វិញបាន (បើគ្មានវាទេ វានឹង Error ពេល git push)
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -67,12 +71,24 @@ jobs:
         run: |
           mkdir -p release-apks
           
-          # ប្រើសញ្ញា *.apk ដើម្បីចាប់យក File ស្វ័យប្រវត្តិ ទោះវាឈ្មោះអ្វីក៏ដោយ
-          cp myapp/platforms/android/app/build/outputs/apk/release/*.apk release-apks/build_${{ github.event.client_payload.buildId }}.apk
+          # [ចំណុចបន្ថែមទី២] ស្វែងរកទីតាំង File APK ដោយស្វ័យប្រវត្តិ (ការពារបញ្ហា Path ខុសគ្នា)
+          APK_PATH=$(find myapp/platforms/android/app/build/outputs -name "*.apk" | head -n 1)
+          
+          if [ -z "$APK_PATH" ]; then
+            echo "Error: រកមិនឃើញ File APK ទេ។ សូមពិនិត្យមើល Log ឡើងវិញ។"
+            exit 1
+          fi
+          
+          echo "រកឃើញ APK នៅទីតាំង៖ $APK_PATH"
+          
+          # Copy File ទៅកាន់ Folder គោលដៅ
+          cp "$APK_PATH" release-apks/build_${{ github.event.client_payload.buildId }}.apk
           
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
+          # [ចំណុចបន្ថែមទី៣] បន្ថែម git fetch ដើម្បីឲ្យប្រាកដថាវាស្គាល់ Branch មុននឹង Push
+          git fetch origin
           git checkout -B apk-releases
           git add release-apks/build_${{ github.event.client_payload.buildId }}.apk
           git commit -m "Build APK for ID: ${{ github.event.client_payload.buildId }}"
